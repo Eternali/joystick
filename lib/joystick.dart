@@ -13,6 +13,7 @@ class Joystick extends StatefulWidget {
     this.pointerSize = 20,
     this.autoCenter = false,
     this.mustDrag = false,
+    this.fixedCenter = true,
     this.showGuides = true,
     this.guideLines = 3,
     this.onTap,
@@ -32,6 +33,11 @@ class Joystick extends StatefulWidget {
   /// itself, otherwise it can be controlled by dragging anywhere on the touch
   /// area and the joystick will snap to that location.
   final bool mustDrag;
+
+  /// If [false] the relative center will be dynamically adjusted to where the user began dragging.
+  /// 
+  /// Defaults to [true].
+  final bool fixedCenter;
 
   /// Whether or not to show grid lines for guidance.
   /// 
@@ -70,6 +76,10 @@ class _JoystickState extends State<Joystick> {
   /// Raw position of the joystick.
   Offset pointerPos;
 
+  /// Raw center to which all movement is relative to.
+  /// Only used if [widget.fixedCenter] is [false]
+  Offset relativeCenter;
+
   /// Controls ability to drag the joystick.
   bool draggable = true;
 
@@ -92,11 +102,12 @@ class _JoystickState extends State<Joystick> {
     pointerPos = Offset(constraints.maxWidth / 2, constraints.maxHeight / 2);
   }
 
-  /// Map a raw [pos] to a set of dimensions specified by [constraints].
-  Offset regularize(Offset pos, RenderBox constraints) {
+  /// Map the raw [pointerPos] and [relativeCenter] to a set of dimensions
+  /// specified by [constraints].
+  Offset regularize(RenderBox constraints) {
     return Offset(
-      2 * pos.dx / constraints.size.width - 1,
-      2 * pos.dy / constraints.size.height - 1,
+      (pointerPos.dx - relativeCenter.dx) / constraints.size.width,
+      (pointerPos.dy - relativeCenter.dy) / constraints.size.height,
     );
   }
 
@@ -135,22 +146,27 @@ class _JoystickState extends State<Joystick> {
               pointerPos = rbox.globalToLocal(details.globalPosition);
               setState(() {
                 pointerPos = clampToBox(rbox);
+                if (!widget.fixedCenter) relativeCenter = pointerPos;
+                else relativeCenter = Offset(rbox.size.width / 2, rbox.size.height / 2);
               });
-              widget.onDrag(regularize(pointerPos, rbox));
+              widget.onDrag(regularize(rbox));
             },
             onPanEnd: (details) {
               if (widget.autoCenter && draggable) {
-                setState(() { center(constraints); });
-                widget.onDrag(regularize(pointerPos, context.findRenderObject()));
+                setState(() {
+                  center(constraints);
+                });
+                widget.onDrag(regularize(context.findRenderObject()));
               }
             },
             onPanUpdate: (details) {
               if (!draggable) return;
               pointerPos = pointerPos.translate(details.delta.dx, details.delta.dy);
+              final RenderBox rbox = context.findRenderObject();
               setState(() {
-                pointerPos = clampToBox(context.findRenderObject());
+                pointerPos = clampToBox(rbox);
               });
-              widget.onDrag(regularize(pointerPos, context.findRenderObject()));
+              widget.onDrag(regularize(rbox));
             },
             child: widget.showGuides ? CustomPaint(
               painter: GridPainter(color: widget.lineColor, quadrantLines: widget.guideLines),
