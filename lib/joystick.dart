@@ -62,10 +62,10 @@ class Joystick extends StatefulWidget {
   final BuildJoyPainter painter;
 
   /// Color palette of the joystick.
-  final MaterialColor joyColor;
+  final ColorSwatch joyColor;
 
   /// Color palette of the grid lines.
-  final MaterialColor lineColor;
+  final Color lineColor;
 
   _JoystickState createState() => _JoystickState();
 
@@ -192,16 +192,16 @@ class GridPainter extends CustomPainter {
   final int quadrantLines;
 
   /// Color palette of the lines.
-  final MaterialColor color;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final mainPaint = Paint()
-      ..color = color[600].withAlpha(200)
+      ..color = color.withAlpha(200)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     final subPaint = Paint()
-      ..color = color[600].withAlpha(100)
+      ..color = color.withAlpha(100)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
