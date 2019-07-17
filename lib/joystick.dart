@@ -5,6 +5,10 @@ import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 typedef BuildJoyPainter = JoyPainter Function(Offset pos, double size);
 
+class JoyController {
+  
+}
+
 /// Creates a configurable virtual joystick control.
 class Joystick extends StatefulWidget {
 
