@@ -1,19 +1,18 @@
-library joystick;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 
-typedef BuildJoyPainter = JoyPainter Function(Offset pos, double size);
+import 'physical_motion.dart';
 
-class JoyController {
-  
-}
+typedef BuildJoyPainter = JoyPainter Function(Offset pos, double size);
 
 /// Creates a configurable virtual joystick control.
 class Joystick extends StatefulWidget {
 
   Joystick({
     Key key,
+    this.controller,
     this.pointerSize = 20,
     this.autoCenter = false,
     this.mustDrag = false,
@@ -26,6 +25,10 @@ class Joystick extends StatefulWidget {
     this.joyColor = Colors.purple,
     this.lineColor = Colors.grey,
   }) : super(key: key);
+
+  /// Used to allow physical joystick from gamepad to control joystick.
+  /// If a physical joystick is connected, it's input will be prioritized except when it's centered (zeroed).
+  final MotionController controller;
 
   /// Radius of the default joystick indicator.
   final double pointerSize;
@@ -77,8 +80,13 @@ class Joystick extends StatefulWidget {
 
 class _JoystickState extends State<Joystick> {
 
+  StreamSubscription<MotionEvent> _subscription;
+
   /// Raw position of the joystick.
   Offset pointerPos;
+
+  /// Renderbox of the joystick for the controller to work with.
+  RenderBox rbox;
 
   /// Raw center to which all movement is relative to.
   /// Only used if [widget.fixedCenter] is [false]
@@ -115,6 +123,13 @@ class _JoystickState extends State<Joystick> {
     );
   }
 
+  Offset deregularize(Offset pos) {
+    return Offset(
+      pos.dx * rbox.size.width + relativeCenter.dx,
+      pos.dy * rbox.size.height + relativeCenter.dy,
+    );
+  }
+
   /// Check if the drag [details] is over the joystick.
   bool isOver(DragDownDetails details) {
     final pos = Vector3(pointerPos.dx, pointerPos.dy, 0);
@@ -124,9 +139,29 @@ class _JoystickState extends State<Joystick> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // widget.controller?.init();
+    _subscription = widget.controller?.stream?.listen((event) {
+      setState(() {
+        pointerPos = deregularize(event.data);
+        widget.onDrag(event.data);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    // widget.controller?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        rbox = context.findRenderObject();
         if (pointerPos == null) center(constraints);
         final joy = CustomPaint(
           painter: widget.painter != null
@@ -146,7 +181,6 @@ class _JoystickState extends State<Joystick> {
                 draggable = false;
                 return;
               } else draggable = true;
-              final RenderBox rbox = context.findRenderObject();
               pointerPos = rbox.globalToLocal(details.globalPosition);
               setState(() {
                 pointerPos = clampToBox(rbox);
@@ -160,13 +194,12 @@ class _JoystickState extends State<Joystick> {
                 setState(() {
                   center(constraints);
                 });
-                widget.onDrag(regularize(context.findRenderObject()));
+                widget.onDrag(regularize(rbox));
               }
             },
             onPanUpdate: (details) {
               if (!draggable) return;
               pointerPos = pointerPos.translate(details.delta.dx, details.delta.dy);
-              final RenderBox rbox = context.findRenderObject();
               setState(() {
                 pointerPos = clampToBox(rbox);
               });
