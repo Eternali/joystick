@@ -15,7 +15,9 @@ class MotionController {
   Stream<MotionEvent> get stream {
     if (_eventStream == null) _eventStream = _eventChannel
       .receiveBroadcastStream()
-      .map((d) => MotionEvent(data: Offset(d['x'], d['y'])));
+      .map((d) {
+        return MotionEvent(data: Offset(d[0], d[1]));
+      });
     return _eventStream;
   }
 

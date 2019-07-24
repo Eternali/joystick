@@ -90,7 +90,7 @@ class _JoystickState extends State<Joystick> {
 
   /// Raw center to which all movement is relative to.
   /// Only used if [widget.fixedCenter] is [false]
-  Offset relativeCenter;
+  Offset relativeCenter = Offset.zero;
 
   /// Controls ability to drag the joystick.
   bool draggable = true;
@@ -118,15 +118,16 @@ class _JoystickState extends State<Joystick> {
   /// specified by [constraints].
   Offset regularize(RenderBox constraints) {
     return Offset(
-      (pointerPos.dx - relativeCenter.dx) / constraints.size.width,
-      (pointerPos.dy - relativeCenter.dy) / constraints.size.height,
+      (pointerPos.dx - relativeCenter.dx) * 2 / constraints.size.width,
+      (pointerPos.dy - relativeCenter.dy) * 2 / constraints.size.height,
     );
   }
 
+  /// Map a regularized position to an offset on the current RenderBox.
   Offset deregularize(Offset pos) {
     return Offset(
-      pos.dx * rbox.size.width + relativeCenter.dx,
-      pos.dy * rbox.size.height + relativeCenter.dy,
+      (pos.dx + 1) / 2 * rbox.size.width,
+      (pos.dy + 1) / 2 * rbox.size.height,
     );
   }
 
@@ -138,23 +139,33 @@ class _JoystickState extends State<Joystick> {
     return pos.distanceTo(fpos) <= widget.pointerSize;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // widget.controller?.init();
-    _subscription = widget.controller?.stream?.listen((event) {
-      setState(() {
-        pointerPos = deregularize(event.data);
-        widget.onDrag(event.data);
-      });
+  /// Listener that is called when the controller detects motion.
+  void controllerListener(event) {
+    setState(() {
+      pointerPos = deregularize(event.data);
+      widget.onDrag(event.data);
     });
   }
 
   @override
+  void initState() {
+    super.initState();
+    _subscription = widget.controller?.stream?.listen(controllerListener);
+  }
+
+  @override
   void dispose() {
-    _subscription.cancel();
-    // widget.controller?.dispose();
+    _subscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(Joystick oldWidget) {
+    if (widget.controller != oldWidget.controller) {
+      _subscription?.cancel();
+      _subscription = widget.controller?.stream?.listen(controllerListener);
+    }
+    super.didUpdateWidget(oldWidget);
   }
 
   @override

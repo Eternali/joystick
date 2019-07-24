@@ -13,7 +13,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   Offset joy = Offset.zero;
   MotionController _controller;
-  String errorTxt;
+  String errorTxt = '';
+  int debug = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -29,19 +30,22 @@ class _MyAppState extends State<MyApp> {
               child: Text('JOY: (${joy.dx}, ${joy.dy})'),
             ),
             Align(
-              alignment: Alignment.topCenter,
+              alignment: Alignment.topRight,
               child: Text(errorTxt),
             ),
-            Expanded(
-              child: Joystick(
-                autoCenter: true,
-                controller: _controller,
-                onDrag: (pos) {
-                  setState(() {
-                    joy = pos;
-                  });
-                },
-              ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text('DEBUG PLUGIN: $debug'),
+            ),
+            Joystick(
+              autoCenter: true,
+              controller: _controller,
+              onDrag: (pos) {
+                setState(() {
+                  debug += 1;
+                  joy = pos;
+                });
+              },
             ),
           ],
         ),
@@ -49,8 +53,9 @@ class _MyAppState extends State<MyApp> {
           child: Icon(Icons.usb),
           onPressed: () async {
             if (await PhysicalMotion.isGamepadConnected) {
-              PhysicalMotion.getController(MotionSources.joy1).then((controller) => setState(() {
+              PhysicalMotion.getController(MotionSources.dpad).then((controller) => setState(() {
                 _controller = controller;
+                errorTxt = 'Connected to controller.';
               }));
             } else {
               setState(() {

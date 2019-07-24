@@ -4,7 +4,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.InputDevice
 import android.view.MotionEvent
-import android.view.View
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -26,7 +25,7 @@ class MotionControllerAdapter(
         val registrar: Registrar,
         var sources: Pair<String, String>,
         val searchForAxis: Boolean = false
-): MethodCallHandler, EventChannel.StreamHandler, View(registrar.context()) {
+): MethodCallHandler, EventChannel.StreamHandler {
     var axes = Pair(
             motionSources[sources.first] ?: MotionEvent.AXIS_X,
             motionSources[sources.second] ?: MotionEvent.AXIS_Y
@@ -38,6 +37,20 @@ class MotionControllerAdapter(
     private var _eventSink: EventChannel.EventSink? = null
 
     init {
+        registrar.view().setOnGenericMotionListener { view, event ->
+            if (_eventSink != null && event != null) {
+                (0 until event.historySize).forEach {
+                    _handler.post {
+                        _eventSink?.success(processInput(event, axes, searchForAxis, it).toList())
+                    }
+                }
+                _handler.post {
+                    _eventSink?.success(processInput(event, axes, searchForAxis, -1).toList())
+                }
+                return@setOnGenericMotionListener true
+            }
+            false
+        }
         _channel.setMethodCallHandler(this)
         _eventChannel.setStreamHandler(this)
     }
@@ -104,20 +117,5 @@ class MotionControllerAdapter(
 
     override fun onCancel(o: Any?) {
         _eventSink = null
-    }
-
-    override fun onGenericMotionEvent(event: MotionEvent?): Boolean {
-        if (_eventSink != null && event != null) {
-            (0 until event.historySize).forEach {
-                _handler.post {
-                    _eventSink?.success(processInput(event, axes, searchForAxis, it).toList())
-                }
-            }
-            _handler.post {
-                _eventSink?.success(processInput(event, axes, searchForAxis, -1).toList())
-            }
-            return true
-        }
-        return super.onGenericMotionEvent(event)
     }
 }
