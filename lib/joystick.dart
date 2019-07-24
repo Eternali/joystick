@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 
-import 'physical_motion.dart';
+import 'motion_controller.dart';
 
 typedef BuildJoyPainter = JoyPainter Function(Offset pos, double size);
 

@@ -12,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import kotlin.math.absoluteValue
 
+// Map of strings dart plugin sends to MotionEvent integer values.
 val motionSources = mapOf(
         "AXIS_HAT_X" to MotionEvent.AXIS_HAT_X,
         "AXIS_HAT_Y" to MotionEvent.AXIS_HAT_Y,
@@ -21,6 +22,10 @@ val motionSources = mapOf(
         "AXIS_RZ" to MotionEvent.AXIS_RZ
 )
 
+// Motion Controller
+// searchForAxis determines whether or not we are strict in terms of what axes we are interested in.
+// If true, it will go through the axes on joystick 1, then the dpad, and then joystick 2 and will
+// return the first non zero value it finds.
 class MotionControllerAdapter(
         val registrar: Registrar,
         var sources: Pair<String, String>,
@@ -30,20 +35,32 @@ class MotionControllerAdapter(
             motionSources[sources.first] ?: MotionEvent.AXIS_X,
             motionSources[sources.second] ?: MotionEvent.AXIS_Y
     )
+    // The method channel name is based on the axes it is interested in.
     val methodChannelName: String = "joystick/${sources.first}/${sources.second}"
+    // Handler so we can send calls to the main thread.
     private val _handler = Handler(Looper.getMainLooper())
+    // MethodChannel for this specific motion controller.
     private val _channel = MethodChannel(registrar.messenger(), methodChannelName)
+    // EventChannel to manage motion events.
     private val _eventChannel = EventChannel(registrar.messenger(), "$methodChannelName/stream")
+    // EventSink to publish motion events on for the plugin to listen to.
     private var _eventSink: EventChannel.EventSink? = null
 
     init {
+        // Get the containing FlutterView and set the generic motion listener
+        // The listener must be set on this view because in order for gamepad events to be visible
+        // and the callback triggered the view must be in focus.
         registrar.view().setOnGenericMotionListener { view, event ->
             if (_eventSink != null && event != null) {
+                // Motion events contain a list of historical events that have occurred since the
+                // callback was last triggered.
                 (0 until event.historySize).forEach {
+                    // Send to the event sink in the main handler thread.
                     _handler.post {
                         _eventSink?.success(processInput(event, axes, searchForAxis, it).toList())
                     }
                 }
+                // Handle the latest event last.
                 _handler.post {
                     _eventSink?.success(processInput(event, axes, searchForAxis, -1).toList())
                 }
@@ -51,10 +68,14 @@ class MotionControllerAdapter(
             }
             false
         }
+        // Send plugin method calls here
         _channel.setMethodCallHandler(this)
+        // Send plugin event stream calls here
         _eventChannel.setStreamHandler(this)
     }
 
+    // Center the event axis value. Often joysticks have a set of values that they consider to be
+    // centered and use this to check if it is zeroed.
     private fun getCenteredAxis(
             event: MotionEvent,
             axis: Int,
@@ -71,6 +92,7 @@ class MotionControllerAdapter(
         return 0f
     }
 
+    // Process a historical motion event.
     private fun processInput(
             event: MotionEvent,
             axes: Pair<Int, Int>,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:joystick/joystick.dart';
-import 'package:joystick/physical_motion.dart';
+import 'package:joystick/motion_controller.dart';
 
 void main() => runApp(MyApp());
 
@@ -52,8 +52,8 @@ class _MyAppState extends State<MyApp> {
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.usb),
           onPressed: () async {
-            if (await PhysicalMotion.isGamepadConnected) {
-              PhysicalMotion.getController(MotionSources.dpad).then((controller) => setState(() {
+            if (await MotionController.isGamepadConnected) {
+              MotionController.getController(MotionSources.dpad).then((controller) => setState(() {
                 _controller = controller;
                 errorTxt = 'Connected to controller.';
               }));
