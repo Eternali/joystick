@@ -42,8 +42,14 @@ class MotionController {
   }
 
   /// Sets up the native channels based on the axes the controller wants to listen for.
-  static Future<MotionController> getController([Tuple2<String, String> sources = MotionSources.joy1]) async {
-    final channelName = await _baseChannel.invokeMethod<String>('getController', {'sources': sources.toList()});
+  static Future<MotionController> getController([
+    Tuple2<String, String> sources = MotionSources.joy1,
+    bool allowFallbackAxes = false
+  ]) async {
+    final channelName = await _baseChannel.invokeMethod<String>('getController', {
+      'sources': sources.toList(),
+      'searchForAxis': allowFallbackAxes,
+    });
     return MotionController(channelName: channelName);
   }
 }

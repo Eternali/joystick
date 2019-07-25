@@ -2,8 +2,10 @@ package com.example.joystick
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.view.View
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -45,29 +47,27 @@ class MotionControllerAdapter(
     private val _eventChannel = EventChannel(registrar.messenger(), "$methodChannelName/stream")
     // EventSink to publish motion events on for the plugin to listen to.
     private var _eventSink: EventChannel.EventSink? = null
+    // Motion event callback so for the main plugin to register in its handler.
+    val motionListener: (View, MotionEvent?) -> Boolean = ml@{ view, event ->
+        if (_eventSink != null && event != null) {
+            // Motion events contain a list of historical events that have occurred since the
+            // callback was last triggered.
+            (0 until event.historySize).forEach {
+                // Send to the event sink in the main handler thread.
+                _handler.post {
+                    _eventSink?.success(processInput(event, axes, searchForAxis, it).toList())
+                }
+            }
+            // Handle the latest event last.
+            _handler.post {
+                _eventSink?.success(processInput(event, axes, searchForAxis, -1).toList())
+            }
+            return@ml true
+        }
+        false
+    }
 
     init {
-        // Get the containing FlutterView and set the generic motion listener
-        // The listener must be set on this view because in order for gamepad events to be visible
-        // and the callback triggered the view must be in focus.
-        registrar.view().setOnGenericMotionListener { view, event ->
-            if (_eventSink != null && event != null) {
-                // Motion events contain a list of historical events that have occurred since the
-                // callback was last triggered.
-                (0 until event.historySize).forEach {
-                    // Send to the event sink in the main handler thread.
-                    _handler.post {
-                        _eventSink?.success(processInput(event, axes, searchForAxis, it).toList())
-                    }
-                }
-                // Handle the latest event last.
-                _handler.post {
-                    _eventSink?.success(processInput(event, axes, searchForAxis, -1).toList())
-                }
-                return@setOnGenericMotionListener true
-            }
-            false
-        }
         // Send plugin method calls here
         _channel.setMethodCallHandler(this)
         // Send plugin event stream calls here
@@ -84,10 +84,17 @@ class MotionControllerAdapter(
     ): Float {
         val range = device.getMotionRange(axis)
         range?.apply {
-            val value =
-                    if (histPos < 0) event.getAxisValue(axis)
-                    else event.getHistoricalAxisValue(axis, histPos)
-            if (value.absoluteValue > range.flat) return value
+            try {
+                val value =
+                        if (histPos < 0) event.getAxisValue(axis)
+                        else event.getHistoricalAxisValue(axis, histPos)
+                if (value.absoluteValue > range.flat) return value
+            } catch (e: IllegalArgumentException) {
+                Log.w(
+                        "Flutter Joystick Plugin",
+                        "An error occurred attempting to center a motion event."
+                )
+            }
         }
         return 0f
     }
