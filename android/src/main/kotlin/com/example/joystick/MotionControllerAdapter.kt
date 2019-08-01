@@ -85,6 +85,7 @@ class MotionControllerAdapter(
         val range = device.getMotionRange(axis)
         range?.apply {
             try {
+                Log.w("Flutter", event.getAxisValue(axis).toString())
                 val value =
                         if (histPos < 0) event.getAxisValue(axis)
                         else event.getHistoricalAxisValue(axis, histPos)

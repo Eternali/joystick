@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tuple/tuple.dart';
@@ -33,12 +35,15 @@ class MotionController {
   }
 
   /// Changes the axes the controller listens on.
-  Future<bool> setSources(Tuple2<String, String> sources) =>
-    _channel.invokeMethod('setSources', {'sources': sources.toList()});
+  Future<bool> setSources(Tuple2<String, String> sources) => Platform.isAndroid
+    ? _channel.invokeMethod('setSources', {'sources': sources.toList()})
+    : false;
 
   /// Checks if a gamepad is connected.
   static Future<bool> get isGamepadConnected async {
-    return await _baseChannel.invokeMethod('isGamepadConnected');
+    return Platform.isAndroid
+      ? await _baseChannel.invokeMethod('isGamepadConnected')
+      : false;
   }
 
   /// Sets up the native channels based on the axes the controller wants to listen for.
@@ -46,6 +51,7 @@ class MotionController {
     Tuple2<String, String> sources = MotionSources.joy1,
     bool allowFallbackAxes = false
   ]) async {
+    if (!Platform.isAndroid) return null;
     final channelName = await _baseChannel.invokeMethod<String>('getController', {
       'sources': sources.toList(),
       'searchForAxis': allowFallbackAxes,
