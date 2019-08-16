@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:joystick/joystick.dart';
-import 'package:joystick/physical_motion.dart';
+import 'package:joystick/motion_controller.dart';
 
 void main() => runApp(MyApp());
 
@@ -13,7 +13,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   Offset joy = Offset.zero;
   MotionController _controller;
-  String errorTxt;
+  String errorTxt = '';
+  int debug = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -29,28 +30,32 @@ class _MyAppState extends State<MyApp> {
               child: Text('JOY: (${joy.dx}, ${joy.dy})'),
             ),
             Align(
-              alignment: Alignment.topCenter,
+              alignment: Alignment.topRight,
               child: Text(errorTxt),
             ),
-            Expanded(
-              child: Joystick(
-                autoCenter: true,
-                controller: _controller,
-                onDrag: (pos) {
-                  setState(() {
-                    joy = pos;
-                  });
-                },
-              ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text('DEBUG PLUGIN: $debug'),
+            ),
+            Joystick(
+              autoCenter: true,
+              controller: _controller,
+              onDrag: (pos) {
+                setState(() {
+                  debug += 1;
+                  joy = pos;
+                });
+              },
             ),
           ],
         ),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.usb),
           onPressed: () async {
-            if (await PhysicalMotion.isGamepadConnected) {
-              PhysicalMotion.getController(MotionSources.joy1).then((controller) => setState(() {
+            if (await MotionController.isGamepadConnected) {
+              MotionController.getController(MotionSources.dpad).then((controller) => setState(() {
                 _controller = controller;
+                errorTxt = 'Connected to controller.';
               }));
             } else {
               setState(() {
